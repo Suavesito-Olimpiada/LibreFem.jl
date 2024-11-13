@@ -1,0 +1,8 @@
+[deps]
+JTwalk = "8bab3a8c-23d6-448f-9af3-e8bf83c5bf13"
+LibreFem = "c261beb8-f411-4acc-bf3f-9b846d8b6f19"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+
+[sources]
+JTwalk = {url = "https://github.com/tuerda/JTwalk"}
+LibreFem = {url = "https://github.com/Suavesito-Olimpiada/LibreFem.jl"}

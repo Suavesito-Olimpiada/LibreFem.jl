@@ -1,0 +1,36 @@
+IFMACRO(!LIBREFEM)
+macro LIBREFEM 1 //
+
+include "getARGV.idp";
+load "../lib/mmap-semaphore-sv";
+
+// level os error, set `macro ERRLEVEL 1` to error (default)
+// and `ERRLEVEL to 0` to warn only.
+
+IFMACRO(!ERRLEVEL)
+    macro ERRLEVEL 1 //
+ENDIFMACRO
+
+// raise an error
+// FreeFem doesn't have an explicit way of raising and error so we force it
+// to raise one with (1/0).
+
+IFMACRO(ERRLEVEL, 1)
+macro LFThrow(msg)
+    cout << "[FF] (ERROR!!!): " << msg << endl; 1/0 //
+ENDIFMACRO
+
+IFMACRO(ERRLEVEL, 0)
+macro LFThrow(msg)
+    cout << "[FF] (WARNING!): " << msg << endl; 1/1 //
+ENDIFMACRO
+
+func int LFThrowf(string msg) {
+    if (ERRLEVEL) { cout << "[FF] (ERROR!!!): " << msg << endl; 1/0; }
+    else { cout << "[FF] (WARNING!): " << msg << endl; 1/1; }
+    return -1;
+}
+
+include "ipc.edp";
+
+ENDIFMACRO
