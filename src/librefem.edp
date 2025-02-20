@@ -1,0 +1,36 @@
+IFMACRO(!LIBREFEM)
+macro LIBREFEM 1 //
+
+include "getARGV.idp";
+
+string mmappath = getARGV("-mmap", "");
+assert(mmappath != "");
+
+load "mmap-semaphore-sv";
+
+// level os error, set `macro ERRLEVEL 1` to error (default)
+// and `ERRLEVEL to 0` to warn only.
+
+IFMACRO(!ERRLEVEL)
+    macro ERRLEVEL 1 //
+ENDIFMACRO
+
+IFMACRO(ERRLEVEL, 1)
+macro LFThrow(msg)
+{ cout << "[FF] (ERROR!!!): " << msg << endl; assert(0); } //
+ENDIFMACRO
+
+IFMACRO(ERRLEVEL, 0)
+macro LFThrow(msg)
+{ cout << "[FF] (WARNING!): " << msg << endl; assert(1); } //
+ENDIFMACRO
+
+func int LFThrowf(string msg) {
+    if (ERRLEVEL) { cout << "[FF] (ERROR!!!): " << msg << endl; assert(0); }
+    else { cout << "[FF] (WARNING!): " << msg << endl; assert(1); }
+    return -1;
+}
+
+include "ipc.edp";
+
+ENDIFMACRO

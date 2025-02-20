@@ -1,0 +1,77 @@
+LFInit();
+
+// `0` means don't create new semaphore as
+// they were initialized in the Julia side
+Psemaphore semjl("ff-main1", 0);   // semaphore of Julia, the main process
+Psemaphore semff("ff-worker1", 0); // semaphore of FreeFEM, the worker
+Pmmap shd("shared-data", 1024); // shared data, for both processes
+
+// send and receive various data types
+//            FreeFEM    Julia
+int i;     // int     -> Int64
+real f;    // real    -> Float64
+complex c; // real    -> Complex{Float64}
+string s = "";  // string  -> String
+
+
+// receive data FreeeFEM <- Julia, waiting in semjl
+cout << "\n[FF]: (wait)\n" << endl;
+Wait(semjl); // wait for Julia side to send the data
+Read(shd, 0, i);  // offset is 0
+Read(shd, 8, f);  // offset is 8, after int
+Read(shd, 16, c); // offset is 16, after int and real
+Read(shd, 32, s); // offset is 32, after int, real and complex
+
+cout << "[FF]: (read) i = " << i << endl;
+cout << "[FF]: (read) f = " << f << endl;
+cout << "[FF]: (read) c = " << c << endl;
+cout << "[FF]: (read) s = " << s << endl;
+
+// do some calculations
+i = i + i; // should result in 4
+f = f * f; // should result in 9.0
+c = c^2;   // should result in -4.0
+
+cout << "[FF]: (write) i = " << i << endl;
+cout << "[FF]: (write) f = " << f << endl;
+cout << "[FF]: (write) c = " << c << endl;
+
+Write(shd, 0, c);  // offset is 0
+Write(shd, 16, i); // offset is 16, after complex
+Write(shd, 24, f); // offset is 24, after complex and int
+Write(shd, 32, "hello world");
+Post(semff); // FreeFEM side (semff) already sent the data
+
+// wait for julia to read the previous variables before overwriting
+cout << "\n[FF]: (wait)\n" << endl;
+Wait(semjl);
+
+
+int n = 3;
+int m = 5;
+real[int] arr(n);
+real[int, int] mat(n, m);
+
+for (int i = 0; i < n; ++i)
+    arr(i) = i;
+
+// row first
+for (int i = 0; i < n; ++i)
+    for (int j = 0; j < m; ++j)
+        mat(i,j) = (i-j)*(i+j+2);
+
+cout << "[FF]: (write) arr = " << arr << endl;
+cout << "[FF]: (write) mat = " << mat << endl;
+
+Write(shd, 0, n);
+Write(shd, 8, m);
+Write(shd, 8+8, arr);
+Write(shd, 8+8+8*n, mat);
+Post(semff);
+
+Wait(semjl);
+Read(shd, 8+8, arr);
+Read(shd, 8+8+8*n, mat);
+
+cout << "[FF]: (read) arr = " << arr << endl;
+cout << "[FF]: (read) mat = " << mat << endl;

@@ -1,0 +1,162 @@
+// The first 128 bytes serve an important role. During variable initialization
+//   - the first 8 bytes of the first 64 bytes [0,8) ⊂ [0, 64), will store
+//     the size of the declarations.
+// After initialization, every time LFPost is called with argument `n`
+//   - it will be written  to the first 8 bytes of the first 64 bytes [0,8) ⊂
+//     [0, 64).
+// And, every time LFWait is called with argument `n`
+//   - it will be read from the first 8 bytes of the second 64 bytes [64, 72) ⊂
+//     [64, 128).
+// From the Julia side, post will write to [64, 72) ⊂ [64, 128), and wait will
+// read from [0, 8) ⊂ [0, 64).
+// We use 64 bytes of difference to write to different cache lines, and avoid
+// false sharing.
+// TODO: measure, and check the alignment
+int LFGlobalOffset = 128;
+int LFGlobalDeclOffset = 128; // one int for the total size
+int[string] LFGlobalOffsetMap;
+int[string] LFGlobalTypeMap;
+int[string] LFGlobalDimsMap;
+int LFGlobalMmapSize = getARGV("-mem", 8*1048576); // default of 8MB
+int LFGlobalId = getARGV("-id", 0); // instance id
+Pmmap LFGlobalMmap(mmappath, LFGlobalMmapSize);
+Psemaphore LFGlobalSemffi("semffi-"+LFGlobalId, 0); // semaphore of foreign function interface, the main process
+Psemaphore LFGlobalSemff("semff-"+LFGlobalId, 0); // semaphore of FreeFEM, the worker
+
+
+// dims is either vec (1) or mat (2)
+func int lftag(string strType) {
+    int typeTag = 0; // unknown
+    // map of type -> tag
+    if (strType == "int")          typeTag = 1;   // 0b000001
+    else if (strType == "real")    typeTag = 2;   // 0b000010
+    else if (strType == "complex") typeTag = 4;   // 0b000100
+    else if (strType == "string")  typeTag = 8;   // 0b001000
+    return typeTag;
+}
+
+// We should only post (write) to our own semaphore
+func int LFPost() {
+    return Post(LFGlobalSemff);
+}
+
+// We should only wait (read) for the other semaphore
+func int LFWait() {
+    return Wait(LFGlobalSemffi);
+}
+
+// named
+
+func int LFImplNew(string name, int type, int n, int m) {
+    // the format to register a variable is
+    //     [nbytes:long|type:long|n:long|m:long|l:length(name)|name:string]
+    int nbytes = 8+8+16+8+name.length;
+    int isvec = (n != 0);
+    int ismat = (n != 0 && m != 0);
+    // type size, see lftag()
+    int typesize = (type == 1 || type == 2) ? 8 : (type == 4 ? 16 : -1);
+    // size of memory assigned to share data
+    int size = typesize * (ismat ? n*m : (isvec ? n : 1));
+    // get offset of memory to share and memory to declare variables
+    int offset = LFGlobalOffset;
+    int decloffset = LFGlobalDeclOffset;
+    // check if memory is enough to declare the new variable and for the size
+    // of variable declared being registered
+    if (offset < LFGlobalMmapSize-size || decloffset < LFGlobalMmapSize-nbytes) {
+        LFGlobalOffsetMap[name] = offset;
+        LFGlobalTypeMap[name] = type;
+        // save the dims as [m:32b,n:32b]
+        LFGlobalDimsMap[name] = n + m*2^32;
+        int[int] data = [nbytes, type, n, m];
+        Write(LFGlobalMmap, 0+decloffset, data);
+        Write(LFGlobalMmap, 32+decloffset, name);
+        // update the offsets for the next variables
+        LFGlobalOffset = offset+size;
+        LFGlobalDeclOffset = decloffset+nbytes;
+        return offset;
+    }
+    LFThrow("Out of memory");
+    return -1;
+}
+
+macro LFNew(type, name)
+type name;
+LFImplNew(Stringification(name), lftag(Stringification(type)), 0, 0);
+//
+
+macro LFNewV(type, name, n)
+type[int] name(n);
+LFImplNew(Stringification(name), lftag(Stringification(type)), n, 0);
+//
+
+macro LFNewM(type, name, n, m)
+type[int,int] name(n, m);
+LFImplNew(Stringification(name), lftag(Stringification(type)), n, m);
+//
+
+
+func int LFInit() {
+    // write the final size of the declaration of variables
+    Write(LFGlobalMmap, 0, LFGlobalDeclOffset);
+    // sent semaphore ready to julia
+    Post(LFGlobalSemff);
+    return LFGlobalDeclOffset;
+}
+
+func int LFGetOffset(string name, int n, int m) {
+    int offset = LFGlobalOffsetMap[name];
+    int d = LFGlobalDimsMap[name];
+    int dn = d%2^32, dm = d/2^32;
+    if (!offset) {
+        LFThrow("No variable called \"" + name + "\"");
+        return -1;
+    }
+    int argdims = (n != 0) + (m != 0);
+    int dims = (dn != 0) + (dm != 0);
+    if (argdims != dims) {
+        if (dims == 0) { LFThrow("Call error. Make sure to use LFRead/LFWrite/LFWriteN for scalars."); }
+        if (dims == 1) { LFThrow("Call error. Make sure to use LFReadV/LFWriteV/LFWriteVN for vectors."); }
+        if (dims == 2) { LFThrow("Call error. Make sure to use LFReadM/LFWriteM/LFWriteMN for matrices."); }
+        return -1;
+    }
+    return offset;
+}
+
+macro LFRead(name, var)
+Read(LFGlobalMmap, LFGetOffset(name, 0, 0)+0, var);
+//
+
+macro LFReadV(name, var)
+Read(LFGlobalMmap, LFGetOffset(name, var.n, 0)+0, var);
+//
+
+macro LFReadM(name, var)
+Read(LFGlobalMmap, LFGetOffset(name, var.n, var.m)+0, var);
+//
+
+macro LFWrite(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, 0, 0)+0, var);
+//
+
+macro LFWriteV(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, var.n, 0)+0, var);
+//
+
+macro LFWriteM(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, var.n, var.m)+0, var);
+//
+
+macro LFWriteN(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, 0, 0)+0, var);
+//
+
+macro LFWriteVN(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, var.n, 0)+0, var);
+//
+
+macro LFWriteMN(name, var)
+Write(LFGlobalMmap, LFGetOffset(name, var.n, var.m)+0, var);
+//
+
+
+// TODO: add tests and documentation

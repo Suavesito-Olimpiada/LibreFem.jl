@@ -1,0 +1,62 @@
+LFInit();
+
+Psemaphore semff("ff-worker1", 0);
+Psemaphore semjl("jl-main1", 0);
+Pmmap sharedata("shared-data", 1024);
+if (verbosity < 4)
+    verbosity = 0;
+
+// Mesh
+mesh Th = square(10, 10);
+int[int] Lab = [1, 2, 3, 4];
+
+// Fespace
+fespace Vh(Th, P1);
+Vh u, v;
+
+// Macro
+macro grad(u) [dx(u), dy(u)] //
+
+int status = 1;
+cout << " FF status = " << status << endl;
+real cff, rff;
+
+// Problem
+problem Pb (u, v)
+    = int2d(Th)(
+            grad(u)'*grad(v)
+            )
+    - int2d(Th)(
+            cff*v
+            )
+    + on(Lab, u=0)
+    ;
+
+if (verbosity > 9)
+    cout << " FF: before FF post" << endl;
+// before wait 0 ff
+Post(semff); //unlock main end init
+
+while (1){
+    if (verbosity > 9)
+        cout << " FF: before FF wait \n";
+    Wait(semjl); //wait from cint write ok
+    Read(sharedata, 0, cff);
+    Read(sharedata, 8, status);
+
+    cout << " After wait .. FF " << cff << " " << status << endl;
+    if(status <= 0)
+        break;
+
+    // Solve
+    Pb;
+    rff = int2d(Th)(u*u);
+    cout << " ** FF " << cff << " " << rff << endl;
+
+    // Write
+    Write(sharedata, 16, rff);
+    Post(semff); //unlock cc
+}
+
+Post(semff); //wait from cint
+cout << " End FreeFEM " << endl;
