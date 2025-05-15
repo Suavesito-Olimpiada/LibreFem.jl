@@ -1,19 +1,8 @@
-// The first 128 bytes serve an important role. During variable initialization
+// The first 8 bytes serve an important role. During variable initialization
 //   - the first 8 bytes of the first 64 bytes [0,8) ⊂ [0, 64), will store
 //     the size of the declarations.
-// After initialization, every time LFPost is called with argument `n`
-//   - it will be written  to the first 8 bytes of the first 64 bytes [0,8) ⊂
-//     [0, 64).
-// And, every time LFWait is called with argument `n`
-//   - it will be read from the first 8 bytes of the second 64 bytes [64, 72) ⊂
-//     [64, 128).
-// From the Julia side, post will write to [64, 72) ⊂ [64, 128), and wait will
-// read from [0, 8) ⊂ [0, 64).
-// We use 64 bytes of difference to write to different cache lines, and avoid
-// false sharing.
-// TODO: measure, and check the alignment
-int LFGlobalOffset = 128;
-int LFGlobalDeclOffset = 128; // one int for the total size
+int LFGlobalOffset = 8;
+int LFGlobalDeclOffset = 8; // one int for the total size
 int[string] LFGlobalOffsetMap;
 int[string] LFGlobalTypeMap;
 int[string] LFGlobalDimsMap;
