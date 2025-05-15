@@ -3,6 +3,8 @@ using Base: Process
 @enum Option empty = -1 yes = 0 no = 1
 
 @kwdef struct Options
+    mpi = false       # parallel
+    np = 2            # number of processes
     verbosity = -1    # verbosity
     graphics = empty  # graphics
     output = true     # output
@@ -22,11 +24,11 @@ mutable struct Runner
     ipc::IPC
     started::Bool
     process::Process
-    function Runner(; source="", file="", output=false, verbosity=0, graphics=empty, cd=false,
+    function Runner(; source="", file="", mpi=false, np=2, output=false, verbosity=0, graphics=empty, cd=false,
         cdtmp=false, jc=false, wait=empty, check_plugin="",
         config::Union{Nothing,@NamedTuple{id::UInt, memory::Int}}=(; id=time_ns(),
             memory=8 * 1 << 20))  # 8MB
-        options = Options(; output, verbosity, graphics, cd, cdtmp, jc, wait, check_plugin)
+        options = Options(; mpi, np, output, verbosity, graphics, cd, cdtmp, jc, wait, check_plugin)
         # source and file are mutually exclusive
         if (isempty(source) & isempty(file)) | (!isempty(source) & !isempty(file))
             throw(ArgumentError("source and file cannot be both set or empty."))
@@ -54,14 +56,14 @@ mutable struct Runner
             "semff-$(configv.id)",
         )
         runner = new(freefem, path, options, configv, ipc, false)
-        finalizer(r -> r.started && kill(r.process), runner)
+        finalizer(r -> r.started && Base.kill(r.process), runner)
         runner
     end
 end
 
 generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}) =
     addenv(Cmd(convert(Vector{String}, split(string(
-        "FreeFem++ -f ",
+        options.mpi ? "FreeFem++ -f " : "mpirun -np $(options.np) FreeFem++-mpi -f ",
         string(Path(path)),
         options.verbosity < 0 ? "" : " -v $(clamp(options.verbosity, 0, 10^6))",
         options.graphics == empty ? "" : options.graphics == yes ? " -wg" : " -nw",
@@ -88,6 +90,11 @@ function Base.run(ff::Runner, args...)
     ff.started = true
     ff.ipc = register_vars(ff.ipc)
     return ff.process
+end
+
+function Base.kill(ff::Runner, signum=Base.SIGTERM)
+    kill(ff.process, signum)
+    # TODO: clean semaphores and memory map
 end
 
 run(ff::Runner, args...) = Base.run(ff, args...)
