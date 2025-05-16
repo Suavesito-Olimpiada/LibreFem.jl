@@ -63,7 +63,7 @@ end
 
 generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}) =
     addenv(Cmd(convert(Vector{String}, split(string(
-            options.mpi ? "FreeFem++ -f " : "mpirun -np $(options.np) FreeFem++-mpi -f ",
+            options.mpi ? "mpirun -np $(options.np) FreeFem++-mpi -f " : "FreeFem++ -f ",
             string(Path(path)),
             options.verbosity < 0 ? "" : " -v $(clamp(options.verbosity, 0, 10^6))",
             options.graphics == empty ? "" : options.graphics == yes ? " -wg" : " -nw",
