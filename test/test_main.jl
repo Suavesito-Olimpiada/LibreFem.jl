@@ -43,7 +43,7 @@ function main()
     LF.post(semjl)
     println("End main")
     LF.wait(semff)
-    process
+    return process
 end
 
 @time process = main()

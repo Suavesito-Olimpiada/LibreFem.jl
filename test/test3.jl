@@ -4,7 +4,7 @@ const LF = LibreFem
 
 function main()
     source =
-        """
+    """
         LFNew(int,i);
         LFNew(real,f);
         LFNew(complex,c);
@@ -62,9 +62,9 @@ function main()
 
         cout << "[FF]: (read) arr = " << arr << endl;
         cout << "[FF]: (read) mat = " << mat << endl;
-        """
+    """
 
-    runner = LF.Runner(;source=source, graphics=LF.no, output=true, verbosity=0)
+    runner = LF.Runner(; source=source, graphics=LF.no, output=true, verbosity=0)
     process = LF.run(runner)
     if Base.process_exited(process)
         return process
@@ -108,7 +108,7 @@ function main()
     # column first
     for j in 1:m
         for i in 1:n
-            mat[i, m-j+1] = (j-i)*(j+i)
+            mat[i, m-j+1] = (j - i) * (j + i)
         end
     end
 
@@ -120,7 +120,7 @@ function main()
     LF.write(runner, "mat", mat)
     LF.post(runner)  # 4
 
-    process
+    return process
 end
 
 @time process = main()

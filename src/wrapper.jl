@@ -27,7 +27,7 @@ const ff_mmap_sem_verb = Global{Clong}()
 function __init__()
     librefem_libdir[] = joinpath(@get_scratch!("libff_mmap_semaphore"), "lib")
     libff_mmap_semaphore[] = joinpath(librefem_libdir[], "libff-mmap-semaphore.so")
-    ff_mmap_sem_verb.x = @eval Core.Intrinsics.cglobal((:ff_mmap_sem_verb, libff_mmap_semaphore[]), eltype(ff_mmap_sem_verb));
+    ff_mmap_sem_verb.x = @eval Core.Intrinsics.cglobal((:ff_mmap_sem_verb, libff_mmap_semaphore[]), eltype(ff_mmap_sem_verb))
 end
 
 

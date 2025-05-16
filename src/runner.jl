@@ -63,20 +63,20 @@ end
 
 generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}) =
     addenv(Cmd(convert(Vector{String}, split(string(
-        options.mpi ? "FreeFem++ -f " : "mpirun -np $(options.np) FreeFem++-mpi -f ",
-        string(Path(path)),
-        options.verbosity < 0 ? "" : " -v $(clamp(options.verbosity, 0, 10^6))",
-        options.graphics == empty ? "" : options.graphics == yes ? " -wg" : " -nw",
-        options.output ? "" : " -ns", # or "-ne"
-        options.cd ? " -cd" : "",
-        options.cdtmp ? " -cdtmp" : "",
-        options.jc ? " -jc" : "",
-        options.wait == empty ? "" : options.wait == yes ? " -wait" : " -nowait",
-        isempty(options.check_plugin) ? "" : " -check_plugin " * options.check_plugin,
-        " -id $(ipc.id)",
-        " -mem $(ipc.memory)",
-        " -mmap $(mmappath)",
-       )))), "FF_LOADPATH" => "$(librefem_libdir[]);;")
+            options.mpi ? "FreeFem++ -f " : "mpirun -np $(options.np) FreeFem++-mpi -f ",
+            string(Path(path)),
+            options.verbosity < 0 ? "" : " -v $(clamp(options.verbosity, 0, 10^6))",
+            options.graphics == empty ? "" : options.graphics == yes ? " -wg" : " -nw",
+            options.output ? "" : " -ns", # or "-ne"
+            options.cd ? " -cd" : "",
+            options.cdtmp ? " -cdtmp" : "",
+            options.jc ? " -jc" : "",
+            options.wait == empty ? "" : options.wait == yes ? " -wait" : " -nowait",
+            isempty(options.check_plugin) ? "" : " -check_plugin " * options.check_plugin,
+            " -id $(ipc.id)",
+            " -mem $(ipc.memory)",
+            " -mmap $(mmappath)",
+        )))), "FF_LOADPATH" => "$(librefem_libdir[]);;")
 
 function Base.run(ff::Runner, args...)
     if ff.started

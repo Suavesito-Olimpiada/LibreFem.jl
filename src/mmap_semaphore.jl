@@ -112,7 +112,7 @@ read(mmap::Mmap, ::Type{T}, size::NTuple{N,Int}, offset::Int) where {N,T<:BasicT
 Read `sizeof(T)*length(arr)` bytes from `mmap` starting from `offset`. Returns `arr`.
 """
 function read!(mmap::Mmap, arr::AbstractVecOrMat{T}, offset::Int) where {T<:BasicTypes}
-    nbytes = sizeof(T)*length(arr)
+    nbytes = sizeof(T) * length(arr)
     ret = libffms.ffmmap_read(mmap.mmap, arr, nbytes, offset)
     if ret != nbytes
         throw(EOFError())
@@ -156,7 +156,7 @@ end
 Write `length(arr)*sizeof(T)` bytes to `mmap` starting from `offset`. Returns `arr`.
 """
 function write(mmap::Mmap, arr::AbstractVecOrMat{T}, offset::Int) where {T<:BasicTypes}
-    nbytes = length(arr)*sizeof(T)
+    nbytes = length(arr) * sizeof(T)
     ret = GC.@preserve arr libffms.ffmmap_write(mmap.mmap, arr, nbytes, offset)
     if ret != nbytes
         throw(EOFError())

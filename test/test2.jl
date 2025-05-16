@@ -3,7 +3,7 @@ using LibreFem
 const LF = LibreFem
 
 function main()
-    runner = LF.Runner(file="test2.edp", graphics=LF.no, output=true, verbosity=0)
+    runner = LF.Runner(; file="test2.edp", graphics=LF.no, output=true, verbosity=0)
     process = LF.run(runner)
     sleep(1)
     if process_exited(process)
@@ -49,7 +49,7 @@ function main()
     # column first
     for j in 1:m
         for i in 1:n
-            mat[i, m-j+1] = (j-i)*(j+i)
+            mat[i, m-j+1] = (j - i) * (j + i)
         end
     end
 
@@ -61,7 +61,7 @@ function main()
     LF.write(runner, "mat", mat)
     LF.post(runner)  # 5
 
-    process
+    return process
 end
 
 @time process = main()

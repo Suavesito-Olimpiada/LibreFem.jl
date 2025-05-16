@@ -7,11 +7,11 @@ const LF = LibreFem
 function main()
     semjl = LF.Sem("ff-main1")
     semff = LF.Sem("ff-worker1")
-    shd   = LF.Mmap("shared-data", 1024)
+    shd = LF.Mmap("shared-data", 1024)
 
     # run _after_ setting up semaphores and memory map
     # we won't use the default mmap and semaphores, instead our own
-    runner = LF.Runner(;file="test1.edp", config=nothing, graphics=LF.no, output=true, verbosity=0)
+    runner = LF.Runner(; file="test1.edp", config=nothing, graphics=LF.no, output=true, verbosity=0)
     process = LF.run(runner)
     println(process)
     sleep(1)
@@ -61,8 +61,8 @@ function main()
     n = LF.read(shd, Int64, 0)
     m = LF.read(shd, Int64, 8)
     println("[JL]: (test) n = ", n, ", m = ", m)
-    arr = LF.read(shd, Float64, (n,), 8+8)
-    mat = LF.read(shd, Float64, (n,m), 8+8+8n)
+    arr = LF.read(shd, Float64, (n,), 8 + 8)
+    mat = LF.read(shd, Float64, (n, m), 8 + 8 + 8n)
 
     # create and array and read the information in it
     # arr = Vector{Float64}(undef, n)
@@ -83,7 +83,7 @@ function main()
     # column first
     for j in 1:m
         for i in 1:n
-            mat[i, m-j+1] = (j-i)*(j+i)
+            mat[i, m-j+1] = (j - i) * (j + i)
         end
     end
 
@@ -91,11 +91,11 @@ function main()
     print("[JL]: (write) mat = ")
     display(mat)
 
-    LF.write(shd, arr, 8+8)
-    LF.write(shd, mat, 8+8+8n)
+    LF.write(shd, arr, 8 + 8)
+    LF.write(shd, mat, 8 + 8 + 8n)
     LF.post(semjl)
 
-    process
+    return process
 end
 
 @time process = main()
