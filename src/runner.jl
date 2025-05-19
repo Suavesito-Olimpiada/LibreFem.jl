@@ -27,7 +27,7 @@ mutable struct Runner
     function Runner(; source="", file="", mpi=false, np=2, output=false, verbosity=0, graphics=empty, cd=false,
         cdtmp=false, jc=false, wait=empty, check_plugin="",
         config::Union{Nothing,@NamedTuple{id::UInt, memory::Int}}=(; id=time_ns(),
-            memory=8 * 1 << 20))  # 8MB
+            memory=8 * 1 << 20), args="")  # 8MB
         options = Options(; mpi, np, output, verbosity, graphics, cd, cdtmp, jc, wait, check_plugin)
         # source and file are mutually exclusive
         if (isempty(source) & isempty(file)) | (!isempty(source) & !isempty(file))
@@ -42,13 +42,14 @@ mutable struct Runner
         source = "include \"" * librefem_edp * "\";\n" *
                  "try {\n" *
                  source * "\n" *
-                 "} catch (...) { cout << \"[FF]: (closing) Ending LibreFem. Bye!\" << endl; }"
-        # write and make sure it hits disk
+                 "} catch (...) { ; }\n" *
+                 "cout << \"[FF]: (closing) Ending LibreFem. Bye!\" << endl;"
+        # write
         Base.write(io, source)
         Base.flush(io)
         configv = something(config, (; id=time_ns(), memory=128))
         mmappath = tempname()
-        freefem = generate_command(path, mmappath, options, configv)
+        freefem = generate_command(path, mmappath, options, configv, args)
         ipc = IPC(
             mmappath,
             configv.memory,
@@ -61,7 +62,7 @@ mutable struct Runner
     end
 end
 
-generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}) =
+generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}, args) =
     addenv(Cmd(convert(Vector{String}, split(string(
             options.mpi ? "mpirun -np $(options.np) FreeFem++-mpi -f " : "FreeFem++ -f ",
             string(Path(path)),
@@ -76,6 +77,7 @@ generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, me
             " -id $(ipc.id)",
             " -mem $(ipc.memory)",
             " -mmap $(mmappath)",
+            args,
         )))), "FF_LOADPATH" => "$(librefem_libdir[]);;")
 
 function Base.run(ff::Runner, args...)
@@ -109,4 +111,5 @@ end
 post(runner::Runner) = post(runner.ipc.semjl)
 
 read(runner::Runner, name::String) = read(runner.ipc, name)
+read!(runner::Runner, name::String, arr) = read!(arr, runner.ipc, name)
 write(runner::Runner, name::String, val) = write(runner.ipc, val, name)

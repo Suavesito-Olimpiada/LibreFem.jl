@@ -94,5 +94,16 @@ function read(ipc::IPC, name::String)
     return copy(val)
 end
 
+function read!(ipc::IPC, arr::VecOrMat, name::String)
+    var = ipc.vars[name]
+    T = lfeltype(var.type)
+    sz = var(var.n, var.m)
+    (!isnothing(T) || eltype(arr) !== T ) || throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
+    sz == (0, 0) || throw(ArgumentError("read! is only for vector and matrices"))
+    sz != size(arr) || throw(ArgumentError("wrong dimentions for array arr"))
+    read!(ipc.mmap, arr, var.offset)
+    return arr
+end
+
 write(ipc::IPC, val, name::String) =
     write(ipc.mmap, val, ipc.vars[name].offset)
