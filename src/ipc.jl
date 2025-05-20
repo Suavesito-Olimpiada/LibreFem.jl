@@ -83,7 +83,9 @@ end
 function read(ipc::IPC, name::String)
     var = ipc.vars[name]
     T = lfeltype(var.type)
-    !isnothing(T) || throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
+    if isnothing(T)
+        throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
+    end
     val = if (var.n, var.m) == (0, 0)
         read(ipc.mmap, T, var.offset)::T
     elseif (var.n, 0) >= (var.n, var.m)
@@ -94,13 +96,23 @@ function read(ipc::IPC, name::String)
     return copy(val)
 end
 
+function _check_array(arr::VecOrMat{T}, var::VarDecl, name::String) where {T}
+    S = lfeltype(var.type)
+    if isnothing(S)
+        throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
+    end
+    sz = iszero(var.n) ? () : (iszero(var.m) ? (var.n,) : (var.n, var.m))
+    if isempty(sz)
+        throw(ArgumentError("read! is only for vector and matrices"))
+    end
+    if sz != size(arr)
+        throw(ArgumentError("wrong dimentions for array arr, it must have been $S"))
+    end
+end
+
 function read!(ipc::IPC, arr::VecOrMat, name::String)
     var = ipc.vars[name]
-    T = lfeltype(var.type)
-    sz = var(var.n, var.m)
-    (!isnothing(T) || eltype(arr) !== T ) || throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
-    sz == (0, 0) || throw(ArgumentError("read! is only for vector and matrices"))
-    sz != size(arr) || throw(ArgumentError("wrong dimentions for array arr"))
+    _check_array(arr, var, name)
     read!(ipc.mmap, arr, var.offset)
     return arr
 end

@@ -77,7 +77,7 @@ generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, me
             " -id $(ipc.id)",
             " -mem $(ipc.memory)",
             " -mmap $(mmappath)",
-            args,
+            " " * args,
         )))), "FF_LOADPATH" => "$(librefem_libdir[]);;")
 
 function Base.run(ff::Runner, args...)
@@ -111,5 +111,5 @@ end
 post(runner::Runner) = post(runner.ipc.semjl)
 
 read(runner::Runner, name::String) = read(runner.ipc, name)
-read!(runner::Runner, name::String, arr) = read!(arr, runner.ipc, name)
+read!(runner::Runner, name::String, arr::VecOrMat) = read!(runner.ipc, arr, name)
 write(runner::Runner, name::String, val) = write(runner.ipc, val, name)
