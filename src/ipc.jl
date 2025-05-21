@@ -101,6 +101,9 @@ function _check_array(arr::VecOrMat{T}, var::VarDecl, name::String) where {T}
     if isnothing(S)
         throw(ArgumentError("wrong tagtype saved for \"$name\" variable"))
     end
+    if S !== T
+        throw(ArgumentError("wrong type $T of array, it should be $S"))
+    end
     sz = iszero(var.n) ? () : (iszero(var.m) ? (var.n,) : (var.n, var.m))
     if isempty(sz)
         throw(ArgumentError("read! is only for vector and matrices"))

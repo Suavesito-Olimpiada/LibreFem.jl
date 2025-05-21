@@ -3,8 +3,6 @@ using Base: Process
 @enum Option empty = -1 yes = 0 no = 1
 
 @kwdef struct Options
-    mpi = false       # parallel
-    np = 2            # number of processes
     verbosity = -1    # verbosity
     graphics = empty  # graphics
     output = true     # output
@@ -23,12 +21,13 @@ mutable struct Runner
     const config::@NamedTuple{id::UInt, memory::Int}
     ipc::IPC
     started::Bool
+    mpi::Bool
     process::Process
     function Runner(; source="", file="", mpi=false, np=2, output=false, verbosity=0, graphics=empty, cd=false,
         cdtmp=false, jc=false, wait=empty, check_plugin="",
         config::Union{Nothing,@NamedTuple{id::UInt, memory::Int}}=(; id=time_ns(),
             memory=8 * 1 << 20), args="")  # 8MB
-        options = Options(; mpi, np, output, verbosity, graphics, cd, cdtmp, jc, wait, check_plugin)
+        options = Options(; output, verbosity, graphics, cd, cdtmp, jc, wait, check_plugin)
         # source and file are mutually exclusive
         if (isempty(source) & isempty(file)) | (!isempty(source) & !isempty(file))
             throw(ArgumentError("source and file cannot be both set or empty."))
@@ -49,22 +48,22 @@ mutable struct Runner
         Base.flush(io)
         configv = something(config, (; id=time_ns(), memory=128))
         mmappath = tempname()
-        freefem = generate_command(path, mmappath, options, configv, args)
+        freefem = generate_command(mpi, np, path, mmappath, options, configv, args)
         ipc = IPC(
             mmappath,
             configv.memory,
             "semffi-$(configv.id)",
             "semff-$(configv.id)",
         )
-        runner = new(freefem, path, options, configv, ipc, false)
+        runner = new(freefem, path, options, configv, ipc, false, mpi)
         finalizer(r -> r.started && Base.kill(r.process), runner)
         runner
     end
 end
 
-generate_command(path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}, args) =
+generate_command(mpi, np, path, mmappath, options::Options, ipc::@NamedTuple{id::UInt, memory::Int}, args) =
     addenv(Cmd(convert(Vector{String}, split(string(
-            options.mpi ? "mpirun -np $(options.np) FreeFem++-mpi -f " : "FreeFem++ -f ",
+            mpi ? "mpirun -np $(np) FreeFem++-mpi -f " : "FreeFem++ -f ",
             string(Path(path)),
             options.verbosity < 0 ? "" : " -v $(clamp(options.verbosity, 0, 10^6))",
             options.graphics == empty ? "" : options.graphics == yes ? " -wg" : " -nw",

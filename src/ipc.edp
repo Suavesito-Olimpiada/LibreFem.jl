@@ -69,18 +69,15 @@ func int LFImplNew(string name, int type, int n, int m) {
 }
 
 macro LFNew(type, name)
-type name;
-LFImplNew(Stringification(name), lftag(Stringification(type)), 0, 0);
+LFImplNew(name, lftag(Stringification(type)), 0, 0);
 //
 
 macro LFNewV(type, name, n)
-type[int] name(n);
-LFImplNew(Stringification(name), lftag(Stringification(type)), n, 0);
+LFImplNew(name, lftag(Stringification(type)), n, 0);
 //
 
 macro LFNewM(type, name, n, m)
-type[int,int] name(n, m);
-LFImplNew(Stringification(name), lftag(Stringification(type)), n, m);
+LFImplNew(name, lftag(Stringification(type)), n, m);
 //
 
 
@@ -134,18 +131,5 @@ Write(LFGlobalMmap, LFGetOffset(name, var.n, 0)+0, var);
 macro LFWriteM(name, var)
 Write(LFGlobalMmap, LFGetOffset(name, var.n, var.m)+0, var);
 //
-
-macro LFWriteN(name, var)
-Write(LFGlobalMmap, LFGetOffset(name, 0, 0)+0, var);
-//
-
-macro LFWriteVN(name, var)
-Write(LFGlobalMmap, LFGetOffset(name, var.n, 0)+0, var);
-//
-
-macro LFWriteMN(name, var)
-Write(LFGlobalMmap, LFGetOffset(name, var.n, var.m)+0, var);
-//
-
 
 // TODO: add tests and documentation

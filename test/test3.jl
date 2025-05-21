@@ -5,14 +5,19 @@ const LF = LibreFem
 function main()
     source =
     """
-        LFNew(int,i);
-        LFNew(real,f);
-        LFNew(complex,c);
+        int i;
+        real f;
+        complex c;
+        LFNew(int, "i");
+        LFNew(real, "f");
+        LFNew(complex, "c");
 
         int n = 3;
         int m = 5;
-        LFNewV(real,arr,n);
-        LFNewM(real,mat,n,m);
+        real[int] arr(n);
+        real[int,int] mat(n, m);
+        LFNewV(real, "arr", n);
+        LFNewM(real, "mat", n, m);
 
         LFInit();
 
